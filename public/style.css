@@ -101,6 +101,25 @@ textarea { resize: vertical; }
 
 .category-manager { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
 .category-manager h3 { margin: 0 0 10px; font-size: 14px; color: var(--muted); }
+
+.category-list { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.cat-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px; border: 1px solid var(--border); border-radius: 9px; background: #fbfbfd;
+}
+.cat-dot { width: 13px; height: 13px; border-radius: 50%; flex-shrink: 0; }
+.cat-name { flex: 1; font-size: 13.5px; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cat-controls { display: flex; gap: 2px; }
+.cat-btn {
+  border: none; background: transparent; cursor: pointer;
+  width: 26px; height: 26px; border-radius: 6px; color: var(--muted);
+  font-size: 13px; line-height: 1; display: grid; place-items: center;
+}
+.cat-btn:hover { background: #eceef3; color: var(--text); }
+.cat-btn:disabled { opacity: 0.3; cursor: default; }
+.cat-btn.del { filter: grayscale(1); opacity: 0.6; }
+.cat-btn.del:hover { filter: none; opacity: 1; background: #fee2e2; }
+
 .cat-add { display: flex; gap: 8px; align-items: center; }
 .cat-add input[type="text"] { flex: 1; }
 .cat-add input[type="color"] { width: 42px; height: 40px; padding: 3px; cursor: pointer; }
@@ -126,7 +145,20 @@ textarea { resize: vertical; }
   gap: 14px;
   align-items: flex-start;
   border-left: 5px solid var(--p2);
-  transition: transform 0.1s;
+  transition: opacity 0.35s ease, transform 0.35s ease;
+  overflow: hidden;
+}
+/* 完了時の演出: グレーアウト → 少し待って → ふわっと消える */
+.task.completing { opacity: 0.55; }
+.task.completing .task-title { text-decoration: line-through; }
+.task.leaving {
+  opacity: 0;
+  transform: translateX(24px);
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  margin: 0;
+  border-width: 0;
 }
 .task.p1 { border-left-color: var(--p1); }
 .task.p2 { border-left-color: var(--p2); }
@@ -164,7 +196,11 @@ textarea { resize: vertical; }
 .icon-btn {
   border: none; background: transparent; cursor: pointer;
   font-size: 15px; padding: 4px 6px; border-radius: 7px; color: var(--muted);
+  transition: opacity 0.15s, background 0.15s, filter 0.15s, transform 0.1s;
 }
 .icon-btn:hover { background: #f1f2f6; }
+/* 削除アイコンは普段はグレー、ホバーで色が戻って赤背景で強調 */
+.icon-btn.delete { filter: grayscale(1); opacity: 0.6; }
+.icon-btn.delete:hover { filter: none; opacity: 1; background: #fee2e2; transform: scale(1.1); }
 
 .empty { text-align: center; color: var(--muted); padding: 40px 0; }

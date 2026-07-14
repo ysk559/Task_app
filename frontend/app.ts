@@ -63,29 +63,68 @@ async function api<T>(url: string, options?: RequestInit): Promise<T> {
 async function loadAll(): Promise<void> {
   [categories, tasks] = await Promise.all([api<Category[]>('/api/categories'), api<Task[]>('/api/tasks')]);
   renderCategoryOptions();
+  renderCategoryList();
   render();
 }
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // ---- 描画 ----
 function renderCategoryOptions(): void {
   const select = $('category') as HTMLSelectElement;
+  const keep = select.value;
   select.innerHTML =
     '<option value="">（なし）</option>' +
     categories.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  select.value = keep;
+}
+
+function renderCategoryList(): void {
+  const list = $('category-list');
+  if (categories.length === 0) {
+    list.innerHTML = '<li class="empty" style="padding:4px 2px;font-size:13px">カテゴリはありません</li>';
+    return;
+  }
+  list.innerHTML = categories
+    .map(
+      (c, i) => `
+      <li class="cat-item" data-id="${c.id}">
+        <span class="cat-dot" style="background:${esc(c.color)}"></span>
+        <span class="cat-name">${esc(c.name)}</span>
+        <span class="cat-controls">
+          <button class="cat-btn" data-cat-action="up" data-id="${c.id}" ${i === 0 ? 'disabled' : ''} title="上へ">▲</button>
+          <button class="cat-btn" data-cat-action="down" data-id="${c.id}" ${
+        i === categories.length - 1 ? 'disabled' : ''
+      } title="下へ">▼</button>
+          <button class="cat-btn del" data-cat-action="delete" data-id="${c.id}" title="削除">🗑</button>
+        </span>
+      </li>`
+    )
+    .join('');
 }
 
 function formatDue(iso: string): { text: string; overdue: boolean } {
   const d = new Date(iso);
   const now = new Date();
-  const overdue = d.getTime() < now.getTime();
-  const diffH = Math.abs(d.getTime() - now.getTime()) / 36e5;
+  const diffMs = d.getTime() - now.getTime();
+  const overdue = diffMs < 0;
+  const absMin = Math.round(Math.abs(diffMs) / 60000);
   const dateStr = `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(
     d.getMinutes()
   ).padStart(2, '0')}`;
-  let rel = '';
-  if (overdue) rel = '（期限切れ）';
-  else if (diffH < 24) rel = `（あと${Math.ceil(diffH)}時間）`;
-  else rel = `（あと${Math.ceil(diffH / 24)}日）`;
+
+  let rel: string;
+  if (overdue) {
+    rel = '（期限切れ）';
+  } else if (absMin < 1) {
+    rel = '（まもなく）';
+  } else if (absMin < 60) {
+    rel = `（あと${absMin}分）`;
+  } else if (absMin < 60 * 24) {
+    rel = `（あと${Math.floor(absMin / 60)}時間）`;
+  } else {
+    rel = `（あと${Math.floor(absMin / (60 * 24))}日）`;
+  }
   return { text: `📅 ${dateStr} ${rel}`, overdue };
 }
 
@@ -122,7 +161,7 @@ function taskCard(task: Task): string {
       </div>
       <div class="task-actions">
         <button class="icon-btn" data-action="edit" data-id="${task.id}" title="編集">✏️</button>
-        <button class="icon-btn" data-action="delete" data-id="${task.id}" title="削除">🗑</button>
+        <button class="icon-btn delete" data-action="delete" data-id="${task.id}" title="削除">🗑</button>
       </div>
     </div>`;
 }
@@ -225,6 +264,21 @@ function bindEvents(): void {
 
     try {
       if (action === 'toggle') {
+        const card = target.closest('.task') as HTMLElement | null;
+        if (!task.completed && card) {
+          // 完了にするとき: チェック → 線 & グレーアウト → ふわっと消す
+          const check = card.querySelector('.check') as HTMLElement | null;
+          if (check) {
+            check.classList.add('on');
+            check.textContent = '✓';
+          }
+          card.classList.add('completing');
+          await sleep(420);
+          if (currentFilter === 'active') {
+            card.classList.add('leaving');
+            await sleep(340);
+          }
+        }
         await api(`/api/tasks/${id}/complete`, {
           method: 'PATCH',
           body: JSON.stringify({ completed: !task.completed }),
@@ -251,6 +305,35 @@ function bindEvents(): void {
     document.querySelectorAll('.chip').forEach((c) => c.classList.remove('active'));
     btn.classList.add('active');
     render();
+  });
+
+  // カテゴリの並び替え・削除（イベント委譲）
+  $('category-list').addEventListener('click', async (e) => {
+    const btn = (e.target as HTMLElement).closest('[data-cat-action]') as HTMLElement | null;
+    if (!btn) return;
+    const id = Number(btn.dataset.id);
+    const action = btn.dataset.catAction;
+    const index = categories.findIndex((c) => c.id === id);
+    if (index === -1) return;
+
+    try {
+      if (action === 'delete') {
+        const cat = categories[index];
+        if (confirm(`カテゴリ「${cat.name}」を削除しますか？\n（このカテゴリのタスクは「カテゴリなし」になります）`)) {
+          await api(`/api/categories/${id}`, { method: 'DELETE' });
+          await loadAll();
+        }
+      } else if (action === 'up' || action === 'down') {
+        const swapWith = action === 'up' ? index - 1 : index + 1;
+        if (swapWith < 0 || swapWith >= categories.length) return;
+        const ids = categories.map((c) => c.id);
+        [ids[index], ids[swapWith]] = [ids[swapWith], ids[index]];
+        await api('/api/categories/reorder', { method: 'PUT', body: JSON.stringify({ ids }) });
+        await loadAll();
+      }
+    } catch (err) {
+      alert((err as Error).message);
+    }
   });
 
   // カテゴリ追加

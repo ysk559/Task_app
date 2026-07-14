@@ -24,10 +24,14 @@ export const pool = new Pool({
 export async function initSchema(): Promise<void> {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS categories (
-      id    SERIAL PRIMARY KEY,
-      name  TEXT NOT NULL UNIQUE,
-      color TEXT NOT NULL DEFAULT '#6366f1'
+      id       SERIAL PRIMARY KEY,
+      name     TEXT NOT NULL UNIQUE,
+      color    TEXT NOT NULL DEFAULT '#6366f1',
+      position INTEGER NOT NULL DEFAULT 0
     );
+
+    -- 既存 DB にも position 列を追加（並び替え用）
+    ALTER TABLE categories ADD COLUMN IF NOT EXISTS position INTEGER NOT NULL DEFAULT 0;
 
     CREATE TABLE IF NOT EXISTS tasks (
       id                SERIAL PRIMARY KEY,
@@ -49,11 +53,11 @@ export async function initSchema(): Promise<void> {
   const { rows } = await pool.query('SELECT COUNT(*)::int AS n FROM categories');
   if (rows[0].n === 0) {
     await pool.query(
-      `INSERT INTO categories (name, color) VALUES
-        ('仕事',   '#3b82f6'),
-        ('プライベート', '#22c55e'),
-        ('勉強',   '#a855f7'),
-        ('買い物', '#f59e0b')`
+      `INSERT INTO categories (name, color, position) VALUES
+        ('仕事',   '#3b82f6', 1),
+        ('プライベート', '#22c55e', 2),
+        ('勉強',   '#a855f7', 3),
+        ('買い物', '#f59e0b', 4)`
     );
   }
 }
