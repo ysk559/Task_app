@@ -1,0 +1,22 @@
+# Render の Infrastructure as Code 定義。
+# このリポジトリを Render に接続し「Blueprint」から作成すると、
+# Web サービス と PostgreSQL がまとめてプロビジョニングされる。
+services:
+  - type: web
+    name: task-app
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: task-app-db
+          property: connectionString
+      - key: NODE_VERSION
+        value: "20"
+
+databases:
+  - name: task-app-db
+    plan: free

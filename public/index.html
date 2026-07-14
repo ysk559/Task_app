@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Task Flow — スマートタスク管理</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand">
+      <span class="logo">✓</span>
+      <div>
+        <h1>Task Flow</h1>
+        <p class="tagline">締切が近づくと重要度が自動で上がる、順番を提案するタスク管理</p>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- 入力フォーム -->
+    <section class="card form-card">
+      <h2 id="form-title">新しいタスク</h2>
+      <form id="task-form">
+        <input type="hidden" id="task-id" />
+        <div class="field">
+          <label for="title">タイトル <span class="req">*</span></label>
+          <input type="text" id="title" placeholder="例）レポートを提出する" required />
+        </div>
+
+        <div class="field">
+          <label for="description">メモ</label>
+          <textarea id="description" rows="2" placeholder="補足があれば"></textarea>
+        </div>
+
+        <div class="grid">
+          <div class="field">
+            <label for="category">カテゴリ</label>
+            <select id="category"><option value="">（なし）</option></select>
+          </div>
+          <div class="field">
+            <label for="priority">重要度</label>
+            <select id="priority">
+              <option value="1">低</option>
+              <option value="2" selected>中</option>
+              <option value="3">高</option>
+              <option value="4">最優先</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div class="field">
+            <label for="due">期限</label>
+            <input type="datetime-local" id="due" />
+          </div>
+          <div class="field">
+            <label for="estimate">所要時間（分）</label>
+            <input type="number" id="estimate" min="0" step="5" placeholder="例）30" />
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn primary" id="submit-btn">追加する</button>
+          <button type="button" class="btn ghost" id="cancel-btn" hidden>キャンセル</button>
+        </div>
+      </form>
+
+      <div class="category-manager">
+        <h3>カテゴリを追加</h3>
+        <div class="cat-add">
+          <input type="text" id="new-cat-name" placeholder="カテゴリ名" />
+          <input type="color" id="new-cat-color" value="#6366f1" />
+          <button type="button" class="btn small" id="add-cat-btn">追加</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- タスク一覧 -->
+    <section class="list-area">
+      <div class="toolbar">
+        <div class="filters" id="filters">
+          <button class="chip active" data-filter="active">未完了</button>
+          <button class="chip" data-filter="all">すべて</button>
+          <button class="chip" data-filter="completed">完了済み</button>
+        </div>
+        <div class="hint" id="order-hint">上から順にやるのがおすすめ ⤵</div>
+      </div>
+      <div id="task-list" class="task-list"></div>
+      <p id="empty" class="empty" hidden>タスクはありません。左のフォームから追加しましょう。</p>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
