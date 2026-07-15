@@ -46,11 +46,28 @@ function esc(s: string): string {
   return div.innerHTML;
 }
 
+// ---- クライアント識別（ログインなしの個人分離） ----
+// ブラウザの localStorage に匿名 ID を 1 つ持ち、全リクエストに付与する。
+// この ID がそのブラウザの「持ち主」を表し、サーバはこれでデータを分離する。
+function getClientId(): string {
+  const KEY = 'taskflow-client-id';
+  let id = localStorage.getItem(KEY);
+  if (!id) {
+    id =
+      typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : 'c-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    localStorage.setItem(KEY, id);
+  }
+  return id;
+}
+const CLIENT_ID = getClientId();
+
 // ---- API 呼び出し ----
 async function api<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, {
-    headers: { 'Content-Type': 'application/json' },
     ...options,
+    headers: { 'Content-Type': 'application/json', 'X-Client-Id': CLIENT_ID, ...(options?.headers ?? {}) },
   });
   if (!res.ok) {
     const msg = await res.json().catch(() => ({ error: res.statusText }));

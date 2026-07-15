@@ -1,6 +1,7 @@
 import path from 'path';
 import express from 'express';
 import { initSchema } from './db';
+import { requireClient } from './clientId';
 import { tasksRouter } from './routes/tasks';
 import { categoriesRouter } from './routes/categories';
 
@@ -14,9 +15,9 @@ import { categoriesRouter } from './routes/categories';
 const app = express();
 app.use(express.json());
 
-// API ルーティング
-app.use('/api/tasks', tasksRouter);
-app.use('/api/categories', categoriesRouter);
+// API ルーティング（クライアント識別ミドルウェアを通す）
+app.use('/api/tasks', requireClient, tasksRouter);
+app.use('/api/categories', requireClient, categoriesRouter);
 
 // ヘルスチェック（Render の死活監視・動作確認用）
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));

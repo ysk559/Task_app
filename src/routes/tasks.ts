@@ -46,7 +46,8 @@ function parseTaskInput(body: any) {
  */
 tasksRouter.get('/', async (_req, res, next) => {
   try {
-    const { rows } = await pool.query<TaskRow>(`SELECT ${COLUMNS} FROM tasks`);
+    const clientId = res.locals.clientId as string;
+    const { rows } = await pool.query<TaskRow>(`SELECT ${COLUMNS} FROM tasks WHERE client_id = $1`, [clientId]);
     const now = new Date();
 
     const active = rows.filter((r) => !r.completed).sort((a, b) => urgencyScore(b, now) - urgencyScore(a, now));
@@ -63,15 +64,24 @@ tasksRouter.get('/', async (_req, res, next) => {
 /** タスク作成 */
 tasksRouter.post('/', async (req, res, next) => {
   try {
+    const clientId = res.locals.clientId as string;
     const input = parseTaskInput(req.body);
     if (!input.title) {
       return res.status(400).json({ error: 'title は必須です' });
     }
     const { rows } = await pool.query<TaskRow>(
-      `INSERT INTO tasks (title, description, category_id, base_priority, due_date, estimated_minutes)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO tasks (client_id, title, description, category_id, base_priority, due_date, estimated_minutes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING ${COLUMNS}`,
-      [input.title, input.description, input.categoryId, input.basePriority, input.dueDate, input.estimatedMinutes]
+      [
+        clientId,
+        input.title,
+        input.description,
+        input.categoryId,
+        input.basePriority,
+        input.dueDate,
+        input.estimatedMinutes,
+      ]
     );
     res.status(201).json(decorate(rows[0]));
   } catch (err) {
@@ -82,6 +92,7 @@ tasksRouter.post('/', async (req, res, next) => {
 /** タスク更新（内容の編集） */
 tasksRouter.put('/:id', async (req, res, next) => {
   try {
+    const clientId = res.locals.clientId as string;
     const id = Number(req.params.id);
     const input = parseTaskInput(req.body);
     if (!input.title) {
@@ -91,9 +102,18 @@ tasksRouter.put('/:id', async (req, res, next) => {
       `UPDATE tasks
          SET title = $1, description = $2, category_id = $3,
              base_priority = $4, due_date = $5, estimated_minutes = $6
-       WHERE id = $7
+       WHERE id = $7 AND client_id = $8
        RETURNING ${COLUMNS}`,
-      [input.title, input.description, input.categoryId, input.basePriority, input.dueDate, input.estimatedMinutes, id]
+      [
+        input.title,
+        input.description,
+        input.categoryId,
+        input.basePriority,
+        input.dueDate,
+        input.estimatedMinutes,
+        id,
+        clientId,
+      ]
     );
     if (rows.length === 0) return res.status(404).json({ error: 'not found' });
     res.json(decorate(rows[0]));
@@ -105,15 +125,16 @@ tasksRouter.put('/:id', async (req, res, next) => {
 /** 完了状態のトグル */
 tasksRouter.patch('/:id/complete', async (req, res, next) => {
   try {
+    const clientId = res.locals.clientId as string;
     const id = Number(req.params.id);
     const completed = Boolean(req.body?.completed);
     const { rows } = await pool.query<TaskRow>(
       `UPDATE tasks
          SET completed = $1,
              completed_at = CASE WHEN $1 THEN NOW() ELSE NULL END
-       WHERE id = $2
+       WHERE id = $2 AND client_id = $3
        RETURNING ${COLUMNS}`,
-      [completed, id]
+      [completed, id, clientId]
     );
     if (rows.length === 0) return res.status(404).json({ error: 'not found' });
     res.json(decorate(rows[0]));
@@ -125,8 +146,9 @@ tasksRouter.patch('/:id/complete', async (req, res, next) => {
 /** タスク削除 */
 tasksRouter.delete('/:id', async (req, res, next) => {
   try {
+    const clientId = res.locals.clientId as string;
     const id = Number(req.params.id);
-    await pool.query('DELETE FROM tasks WHERE id = $1', [id]);
+    await pool.query('DELETE FROM tasks WHERE id = $1 AND client_id = $2', [id, clientId]);
     res.status(204).end();
   } catch (err) {
     next(err);
